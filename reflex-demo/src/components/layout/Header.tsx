@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Search } from "lucide-react";
@@ -16,6 +17,19 @@ const tabs = [
 
 export function Header() {
   const pathname = usePathname();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    function handleClick(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [menuOpen]);
 
   return (
     <header className="h-12 bg-white border-b border-[#E5E7EB] flex items-center px-4 gap-4 shrink-0">
@@ -70,8 +84,32 @@ export function Header() {
             <ConnectionDot key={c.name} label={c.label} status={c.status} />
           ))}
         </div>
-        <div className="w-7 h-7 rounded-full bg-[#0D9488] flex items-center justify-center text-white text-xs font-semibold">
-          JM
+        <div className="relative" ref={menuRef}>
+          <button
+            type="button"
+            onClick={() => setMenuOpen((v) => !v)}
+            className="w-7 h-7 rounded-full bg-[#0D9488] flex items-center justify-center text-white text-xs font-semibold cursor-pointer hover:bg-[#0F766E] transition-colors"
+          >
+            JM
+          </button>
+          {menuOpen && (
+            <div className="absolute right-0 top-9 w-36 bg-white border border-[#E5E7EB] rounded shadow-[0_4px_12px_rgba(0,0,0,0.1)] py-1 z-50">
+              <Link
+                href="/settings"
+                onClick={() => setMenuOpen(false)}
+                className="block px-3 py-2 text-sm font-body text-[#4B5563] hover:bg-[#F9FAFB] hover:text-[#111827]"
+              >
+                Profile
+              </Link>
+              <Link
+                href="/login"
+                onClick={() => setMenuOpen(false)}
+                className="block px-3 py-2 text-sm font-body text-[#4B5563] hover:bg-[#F9FAFB] hover:text-[#111827]"
+              >
+                Sign Out
+              </Link>
+            </div>
+          )}
         </div>
       </div>
     </header>
