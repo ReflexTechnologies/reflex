@@ -9,9 +9,9 @@ import { connections, SITE } from "@/data/mock-data";
 
 const tabs = [
   { href: "/operations", label: "Global View" },
-  { href: "#", label: "Assets" },
-  { href: "#", label: "Compliance" },
-  { href: "#", label: "Safety" },
+  { href: "/assets", label: "Assets" },
+  { href: "/compliance", label: "Compliance" },
+  { href: "/safety", label: "Safety" },
 ];
 
 export function Header() {
@@ -28,11 +28,12 @@ export function Header() {
       {/* Nav tabs */}
       <nav className="flex items-center gap-1 ml-4">
         {tabs.map((tab) => {
-          const isActive = pathname === tab.href;
+          const isActive = pathname === tab.href || pathname.startsWith(tab.href + "/");
           return (
             <Link
-              key={tab.label}
+              key={tab.href}
               href={tab.href}
+              aria-current={isActive ? "page" : undefined}
               className={clsx(
                 "px-3 py-1.5 rounded text-xs font-body transition-colors",
                 isActive
