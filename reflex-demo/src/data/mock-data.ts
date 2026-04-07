@@ -147,6 +147,129 @@ export const driftData: DriftDataPoint[] = Array.from({ length: 90 }, (_, i) => 
   actual: 8.0 - (i > 30 ? ((i - 30) * 0.007) : 0),
 }));
 
+// Margin waterfall keyed by short-term LP horizon. The 30d rates roughly
+// match the original waterfallData totals (CDU 14*30=420, FCC 12.67*30~380,
+// HCU 8.67*30~260, Blend 6*30=180) so existing screenshots stay coherent.
+export type WaterfallWindow = "1d" | "7d" | "30d";
+
+export interface MarginWaterfallUnit {
+  name: string;
+  ratePerDay: number; // $K/day
+}
+
+export interface MarginWaterfallWindowData {
+  units: MarginWaterfallUnit[];
+  capturedRatePerDay: number;
+  opportunityRatePerDay: number;
+}
+
+export const marginWaterfallByWindow: Record<WaterfallWindow, MarginWaterfallWindowData> = {
+  "1d": {
+    units: [
+      { name: "CDU",   ratePerDay: 16.2 },
+      { name: "FCC",   ratePerDay: 13.8 },
+      { name: "HCU",   ratePerDay:  9.1 },
+      { name: "Blend", ratePerDay:  6.4 },
+    ],
+    capturedRatePerDay:   45.5,
+    opportunityRatePerDay: 11.2,
+  },
+  "7d": {
+    units: [
+      { name: "CDU",   ratePerDay: 14.7 },
+      { name: "FCC",   ratePerDay: 13.1 },
+      { name: "HCU",   ratePerDay:  8.9 },
+      { name: "Blend", ratePerDay:  6.2 },
+    ],
+    capturedRatePerDay:   42.9,
+    opportunityRatePerDay: 10.1,
+  },
+  "30d": {
+    units: [
+      { name: "CDU",   ratePerDay: 14.0 },
+      { name: "FCC",   ratePerDay: 12.67 },
+      { name: "HCU",   ratePerDay:  8.67 },
+      { name: "Blend", ratePerDay:  6.0 },
+    ],
+    capturedRatePerDay:   41.34,
+    opportunityRatePerDay: 9.33,
+  },
+};
+
+// Where drift actually lives. Pumps and valves are intentionally absent —
+// they don't drive LP coefficient drift; reactors, exchangers, fractionators,
+// and blenders do (catalyst aging, fouling, composition shifts).
+export interface ModelDriftEquipmentRow {
+  area: "Reactor" | "Heat Exchanger" | "Fractionator" | "Blender";
+  predicted: number;
+  actual: number;
+  unit: string;       // e.g. "% yield", "°F outlet", "% conv", "RVP"
+  delta: number;
+  deltaPct: number;
+  status: "ok" | "watch" | "drift";
+  trend7d: number[];  // 7 daily deltas for the sparkline
+}
+
+export const modelDriftByEquipment: ModelDriftEquipmentRow[] = [
+  {
+    area: "Heat Exchanger",
+    predicted: 412, actual: 397, unit: "°F outlet",
+    delta: -15, deltaPct: -3.64, status: "drift",
+    trend7d: [-8, -10, -11, -12, -13, -14, -15],
+  },
+  {
+    area: "Reactor",
+    predicted: 8.0, actual: 7.62, unit: "% yield",
+    delta: -0.38, deltaPct: -4.75, status: "drift",
+    trend7d: [-0.22, -0.25, -0.28, -0.31, -0.34, -0.36, -0.38],
+  },
+  {
+    area: "Fractionator",
+    predicted: 65.2, actual: 64.1, unit: "% conv",
+    delta: -1.1, deltaPct: -1.69, status: "watch",
+    trend7d: [-0.4, -0.6, -0.7, -0.8, -0.9, -1.0, -1.1],
+  },
+  {
+    area: "Blender",
+    predicted: 87.5, actual: 87.4, unit: "RVP",
+    delta: -0.1, deltaPct: -0.11, status: "ok",
+    trend7d: [0.0, -0.05, -0.05, -0.1, -0.1, -0.1, -0.1],
+  },
+];
+
+// 30-day predicted-vs-actual series per equipment area for the
+// /model-drift detail page chart. Worst-drifting first to match the table.
+export const driftDataByEquipment: Record<string, DriftDataPoint[]> = {
+  "Heat Exchanger": Array.from({ length: 30 }, (_, i) => ({
+    date: `Day ${i + 1}`,
+    predicted: 412,
+    actual: 412 - (i > 5 ? (i - 5) * 0.62 : 0),
+  })),
+  "Reactor": Array.from({ length: 30 }, (_, i) => ({
+    date: `Day ${i + 1}`,
+    predicted: 8.0,
+    actual: 8.0 - (i > 8 ? (i - 8) * 0.018 : 0),
+  })),
+  "Fractionator": Array.from({ length: 30 }, (_, i) => ({
+    date: `Day ${i + 1}`,
+    predicted: 65.2,
+    actual: 65.2 - (i > 12 ? (i - 12) * 0.06 : 0),
+  })),
+  "Blender": Array.from({ length: 30 }, (_, i) => ({
+    date: `Day ${i + 1}`,
+    predicted: 87.5,
+    actual: 87.5 - (i > 22 ? (i - 22) * 0.012 : 0),
+  })),
+};
+
+// Hero KPI strip for the /model-drift page. Reuses the project KPICardData shape.
+export const modelDriftKPIs: KPICardData[] = [
+  { label: "Overall Drift",      value: 2.55, unit: "%",        precision: 2, status: "warning" },
+  { label: "Worst Area",         value: 4.75, unit: "% Reactor", precision: 2, status: "warning", trendLabel: "HX close behind" },
+  { label: "Last Recalibration", value: 48,   unit: "days ago", precision: 0, trendLabel: "2026-02-18" },
+  { label: "7-Day Trend",        value: 0.34, unit: "% delta",  precision: 2, trend: -8, trendLabel: "worsening" },
+];
+
 export const sensorHealthData: SensorHealthCell[] = [
   // CDU
   { unit: "CDU", sensorType: "Temp", status: "healthy" },

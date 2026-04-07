@@ -1,12 +1,34 @@
 "use client";
 
 import ReactECharts from "echarts-for-react";
-import { driftData } from "@/data/mock-data";
+import { driftData, driftDataByEquipment } from "@/data/mock-data";
 
-export function DriftChart() {
-  const driftStartIndex = driftData.findIndex(
+interface DriftChartProps {
+  /** If set, use the per-equipment series from driftDataByEquipment instead of the default driftData. */
+  equipmentArea?: string;
+  /** Hide the internal header so the parent card can own the title and toolbar. */
+  hideHeader?: boolean;
+}
+
+export function DriftChart({ equipmentArea, hideHeader }: DriftChartProps = {}) {
+  const series = equipmentArea
+    ? (driftDataByEquipment[equipmentArea] ?? driftData)
+    : driftData;
+
+  const driftStartIndex = series.findIndex(
     (d) => d.predicted - d.actual > 0.15
   );
+
+  // Y-axis bounds adapt to whichever series is being plotted so non-percent
+  // areas (e.g. Heat Exchanger °F) render with sensible padding.
+  const allVals = series.flatMap((d) => [d.predicted, d.actual]);
+  const dataMin = Math.min(...allVals);
+  const dataMax = Math.max(...allVals);
+  const padY = (dataMax - dataMin) * 0.15 || 0.5;
+  const yMin = dataMin - padY;
+  const yMax = dataMax + padY;
+
+  const valueSuffix = equipmentArea ? "" : "%";
 
   const option: Record<string, unknown> = {
     animation: true,
@@ -20,7 +42,7 @@ export function DriftChart() {
     },
     xAxis: {
       type: "category",
-      data: driftData.map((d) => d.date),
+      data: series.map((d) => d.date),
       axisLine: { show: false },
       axisTick: { show: false },
       splitLine: { show: false },
@@ -28,13 +50,13 @@ export function DriftChart() {
         fontFamily: "IBM Plex Mono, monospace",
         fontSize: 11,
         color: "#9CA3AF",
-        interval: 29,
+        interval: Math.max(Math.floor(series.length / 4) - 1, 0),
       },
     },
     yAxis: {
       type: "value",
-      min: 7.4,
-      max: 8.2,
+      min: yMin,
+      max: yMax,
       axisLine: { show: false },
       axisTick: { show: false },
       splitLine: {
@@ -45,7 +67,7 @@ export function DriftChart() {
         fontFamily: "IBM Plex Mono, monospace",
         fontSize: 11,
         color: "#9CA3AF",
-        formatter: (v: number) => `${v.toFixed(1)}%`,
+        formatter: (v: number) => `${v.toFixed(1)}${valueSuffix}`,
       },
     },
     tooltip: {
@@ -59,7 +81,7 @@ export function DriftChart() {
       },
       formatter: (params: Array<{ seriesName: string; value: number; axisValue: string }>) => {
         const lines = params.map(
-          (p) => `${p.seriesName}: ${Number(p.value).toFixed(2)}%`
+          (p) => `${p.seriesName}: ${Number(p.value).toFixed(2)}${valueSuffix}`
         );
         return `${params[0].axisValue}<br/>${lines.join("<br/>")}`;
       },
@@ -71,7 +93,7 @@ export function DriftChart() {
       {
         name: "Predicted",
         type: "line",
-        data: driftData.map((d) => d.predicted),
+        data: series.map((d) => d.predicted),
         smooth: true,
         symbol: "none",
         lineStyle: { color: "#0D9488", width: 2 },
@@ -83,12 +105,12 @@ export function DriftChart() {
                 data: [
                   [
                     {
-                      xAxis: driftData[driftStartIndex].date,
+                      xAxis: series[driftStartIndex].date,
                       itemStyle: {
                         color: "rgba(217, 119, 6, 0.08)",
                       },
                     },
-                    { xAxis: driftData[driftData.length - 1].date },
+                    { xAxis: series[series.length - 1].date },
                   ],
                 ],
               }
@@ -97,7 +119,7 @@ export function DriftChart() {
       {
         name: "Actual",
         type: "line",
-        data: driftData.map((d) => Number(d.actual.toFixed(3))),
+        data: series.map((d) => Number(d.actual.toFixed(3))),
         smooth: true,
         symbol: "none",
         lineStyle: { color: "#9CA3AF", width: 2, type: "dashed" as const },
@@ -108,26 +130,29 @@ export function DriftChart() {
 
   return (
     <div className="flex flex-col h-full relative">
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-headline font-semibold text-[#111827]">
-          Model Drift — Yield Prediction
-        </h3>
-        <div className="flex items-center gap-4 text-xs font-mono text-[#9CA3AF]">
-          <span className="flex items-center gap-1.5">
-            <span className="inline-block w-4 h-0.5 bg-[#0D9488]" />
-            Predicted
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="inline-block w-4 h-0.5 bg-[#9CA3AF] border-t border-dashed border-[#9CA3AF]" />
-            Actual
-          </span>
+      {!hideHeader && (
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-headline font-semibold text-[#111827]">
+            Model Drift — Yield Prediction
+          </h3>
+          <div className="flex items-center gap-4 text-xs font-mono text-[#9CA3AF]">
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block w-4 h-0.5 bg-[#0D9488]" />
+              Predicted
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block w-4 h-0.5 bg-[#9CA3AF] border-t border-dashed border-[#9CA3AF]" />
+              Actual
+            </span>
+          </div>
         </div>
-      </div>
+      )}
       <div className="flex-1 min-h-0 relative">
         <ReactECharts
           option={option}
           style={{ height: "100%", width: "100%" }}
           opts={{ renderer: "svg" }}
+          notMerge
         />
         {driftStartIndex >= 0 && (
           <div

@@ -10,6 +10,7 @@ import {
   Truck,
   ShieldAlert,
   FileBarChart,
+  Activity,
   ScrollText,
   Settings,
   HelpCircle,
@@ -22,6 +23,7 @@ const navItems = [
   { href: "/logistics", label: "Logistics", icon: Truck },
   { href: "/risk-assessment", label: "Risk Assessment", icon: ShieldAlert },
   { href: "/analytics", label: "Reports", icon: FileBarChart },
+  { href: "/model-drift", label: "Model Drift", icon: Activity },
   { href: "/logs", label: "Logs", icon: ScrollText },
 ];
 
