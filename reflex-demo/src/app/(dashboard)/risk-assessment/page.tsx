@@ -7,9 +7,9 @@ import ReactECharts from "echarts-for-react";
 /* ── Mock Data ────────────────────────────────────────────────── */
 
 const kpis: KPICardData[] = [
-  { label: "Active Risks", value: 7, precision: 0 },
-  { label: "Critical", value: 2, precision: 0, status: "warning" },
-  { label: "Avg Risk Score", value: 6.4, precision: 1, unit: "/ 10" },
+  { label: "Active Risks", value: 4, precision: 0 },
+  { label: "Critical", value: 1, precision: 0, status: "warning" },
+  { label: "Avg Risk Score", value: 6.1, precision: 1, unit: "/ 10" },
   {
     label: "Mitigated This Month",
     value: 3,
@@ -24,13 +24,10 @@ const likelihoodLabels = ["Rare", "Unlikely", "Possible", "Likely", "Almost Cert
 
 // [impact(x), likelihood(y), score]
 const heatmapPoints: [number, number, number][] = [
-  [3, 4, 8.5],  // Major × Likely
-  [4, 3, 9.2],  // Catastrophic × Possible
-  [2, 2, 4.8],  // Moderate × Unlikely
-  [1, 3, 5.1],  // Minor × Possible
-  [3, 1, 3.2],  // Major × Rare
-  [2, 4, 7.0],  // Moderate × Likely
-  [4, 2, 6.9],  // Catastrophic × Unlikely
+  [4, 3, 9.2],  // RSK-041 — Catastrophic × Possible
+  [4, 2, 6.9],  // RSK-033 — Catastrophic × Unlikely
+  [1, 3, 5.1],  // RSK-030 — Minor × Possible
+  [3, 1, 3.2],  // RSK-025 — Major × Rare
 ];
 
 type RiskCategory = "Operational" | "Financial" | "Safety" | "Environmental";
@@ -46,11 +43,8 @@ interface Risk {
 
 const risks: Risk[] = [
   { id: "RSK-041", description: "FCC regenerator catalyst attrition above threshold", category: "Operational", score: 9.2, owner: "M. Chen", status: "Open" },
-  { id: "RSK-038", description: "Crude supply contract renewal pricing risk", category: "Financial", score: 8.5, owner: "J. Patel", status: "Open" },
-  { id: "RSK-035", description: "H2S detector calibration drift in alkylation unit", category: "Safety", score: 7.0, owner: "R. Kim", status: "Mitigating" },
-  { id: "RSK-033", description: "Wastewater discharge pH exceedance probability", category: "Environmental", score: 6.9, owner: "L. Garcia", status: "Mitigating" },
+  { id: "RSK-033", description: "Approaching 365-day SOX emissions cap — may force switch to lower-sulfur crude slate", category: "Environmental", score: 6.9, owner: "L. Garcia", status: "Mitigating" },
   { id: "RSK-030", description: "Reformer tube wall thinning above forecast", category: "Operational", score: 5.1, owner: "T. Nguyen", status: "Monitoring" },
-  { id: "RSK-028", description: "Insurance premium increase due to incident rate", category: "Financial", score: 4.8, owner: "J. Patel", status: "Monitoring" },
   { id: "RSK-025", description: "CDU overhead corrosion rate exceeding inspection plan", category: "Operational", score: 3.2, owner: "M. Chen", status: "Monitoring" },
 ];
 
@@ -211,11 +205,16 @@ export default function RiskAssessmentPage() {
         <div className="flex items-center gap-3">
           <h1 className="font-headline text-xl font-bold text-[#111827]">Risk Assessment</h1>
           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-headline font-bold uppercase tracking-wider bg-[#FEF3C7] text-[#D97706] border border-[#FDE68A]">
-            7 Active Risks
+            4 Active Risks
           </span>
         </div>
         <span className="text-xs font-mono text-[#9CA3AF]">Synced 12s ago</span>
       </div>
+
+      {/* Scope note */}
+      <p className="text-xs font-body text-[#6B7280] -mt-2">
+        This view focuses on risks that affect LP model planning. Safety, HR, and compliance risks are tracked separately by their respective departments.
+      </p>
 
       {/* KPI strip */}
       <div className="grid grid-cols-4 gap-3">
