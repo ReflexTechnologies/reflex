@@ -117,6 +117,300 @@ export const flowNetworkData = [
   { unit: "STR", performance: 93 },
 ];
 
+/* ------------------------------------------------------------------ */
+/* Refinery Flow — Sankey + unit status                               */
+/* ------------------------------------------------------------------ */
+
+export interface SankeyNode {
+  name: string;
+  itemStyle: { color: string };
+}
+
+export interface SankeyLink {
+  source: string;
+  target: string;
+  value: number;        // actual kbpd
+  target_value: number; // planned kbpd
+}
+
+export const sankeyNodes: SankeyNode[] = [
+  { name: "Crude Feed", itemStyle: { color: "#0D9488" } },
+  { name: "CDU", itemStyle: { color: "#0D9488" } },
+  { name: "FCC", itemStyle: { color: "#0D9488" } },
+  { name: "HCU", itemStyle: { color: "#0D9488" } },
+  { name: "Reformer", itemStyle: { color: "#14B8A6" } },
+  { name: "Blend", itemStyle: { color: "#14B8A6" } },
+  { name: "Gasoline Pool", itemStyle: { color: "#5EEAD4" } },
+  { name: "LPG", itemStyle: { color: "#5EEAD4" } },
+  { name: "Diesel Pool", itemStyle: { color: "#5EEAD4" } },
+  { name: "Naphtha", itemStyle: { color: "#5EEAD4" } },
+  { name: "Reformate", itemStyle: { color: "#5EEAD4" } },
+  { name: "H2", itemStyle: { color: "#5EEAD4" } },
+  { name: "Product Out", itemStyle: { color: "#5EEAD4" } },
+];
+
+export const sankeyLinks: SankeyLink[] = [
+  { source: "Crude Feed", target: "CDU", value: 105, target_value: 110 },
+  { source: "CDU", target: "FCC", value: 38, target_value: 40 },
+  { source: "CDU", target: "HCU", value: 28, target_value: 32 },
+  { source: "CDU", target: "Reformer", value: 22, target_value: 22 },
+  { source: "CDU", target: "Blend", value: 17, target_value: 17 },
+  { source: "FCC", target: "Gasoline Pool", value: 32, target_value: 33 },
+  { source: "FCC", target: "LPG", value: 6, target_value: 7 },
+  { source: "HCU", target: "Diesel Pool", value: 24, target_value: 28 },
+  { source: "HCU", target: "Naphtha", value: 4, target_value: 4 },
+  { source: "Reformer", target: "Reformate", value: 18, target_value: 18 },
+  { source: "Reformer", target: "H2", value: 4, target_value: 4 },
+  { source: "Blend", target: "Product Out", value: 17, target_value: 17 },
+];
+
+export type RefineryUnitSlug =
+  | "cdu"
+  | "fcc"
+  | "hcu"
+  | "reformer"
+  | "blend"
+  | "storage";
+
+export interface RefineryUnitStatus {
+  slug: RefineryUnitSlug;
+  name: string;
+  status: "Online" | "Caution";
+  throughput: number;
+  throughputTarget: number;
+  temp: number;
+  pressure: number;
+}
+
+export const refineryUnits: RefineryUnitStatus[] = [
+  { slug: "cdu",      name: "CDU",      status: "Online",  throughput: 105, throughputTarget: 110, temp: 725, pressure: 42 },
+  { slug: "fcc",      name: "FCC",      status: "Online",  throughput: 38,  throughputTarget: 40,  temp: 985, pressure: 28 },
+  { slug: "hcu",      name: "HCU",      status: "Caution", throughput: 28,  throughputTarget: 32,  temp: 780, pressure: 165 },
+  { slug: "reformer", name: "Reformer", status: "Online",  throughput: 22,  throughputTarget: 22,  temp: 925, pressure: 350 },
+  { slug: "blend",    name: "Blend",    status: "Online",  throughput: 17,  throughputTarget: 17,  temp: 180, pressure: 15 },
+  { slug: "storage",  name: "Storage",  status: "Online",  throughput: 85,  throughputTarget: 90,  temp: 95,  pressure: 2 },
+];
+
+export interface UnitDashboard {
+  slug: RefineryUnitSlug;
+  name: string;
+  fullName: string;
+  heroOpportunity: number;
+  heroTrend: number;
+  kpis: KPICardData[];
+  constraints: Constraint[];
+  recommendations: Recommendation[];
+}
+
+export const unitDashboards: Record<RefineryUnitSlug, UnitDashboard> = {
+  cdu: {
+    slug: "cdu",
+    name: "CDU",
+    fullName: "Crude Distillation Unit",
+    heroOpportunity: 142000,
+    heroTrend: 8.4,
+    kpis: [
+      { label: "Feed Rate", value: 105, unit: "K BPD", precision: 0, trend: -4.5, trendLabel: "vs target 110" },
+      { label: "Naphtha Yield", value: 18.2, unit: "%", precision: 1, trend: 0.6, trendLabel: "vs plan" },
+      { label: "Energy Index", value: 92.1, unit: "EEI", precision: 1, trend: -1.2, trendLabel: "vs plan" },
+      { label: "Tower DP", value: 6.4, unit: "psi", precision: 1 },
+    ],
+    constraints: [],
+    recommendations: [
+      {
+        id: "rec-cdu-1",
+        priority: "high",
+        timestamp: "13:48",
+        triggerType: "Yield Optimization",
+        summary:
+          "Lift CDU feed rate from 105 to 108 kbpd. Current run is 4.5% under target — heat balance and tower DP both have headroom.",
+        deltas: [
+          { parameter: "Feed rate", current: "105 kbpd", recommended: "108 kbpd", delta: "+3 kbpd" },
+          { parameter: "Margin impact", current: "—", recommended: "+$58,000/day" },
+          { parameter: "Confidence", current: "—", recommended: "HIGH" },
+        ],
+        marginImpact: "+$58,000/day",
+        confidence: "HIGH",
+      },
+    ],
+  },
+  fcc: {
+    slug: "fcc",
+    name: "FCC",
+    fullName: "Fluid Catalytic Cracker",
+    heroOpportunity: 88000,
+    heroTrend: 5.1,
+    kpis: [
+      { label: "Feed Rate", value: 38, unit: "K BPD", precision: 0, trend: -5.0, trendLabel: "vs target 40" },
+      { label: "Gasoline Yield", value: 48.6, unit: "%", precision: 1, trend: 0.4, trendLabel: "vs plan" },
+      { label: "Reactor Temp", value: 985, unit: "°F", precision: 0 },
+      { label: "Regen DP", value: 8.2, unit: "psi", precision: 1, status: "warning" },
+    ],
+    constraints: [],
+    recommendations: [
+      {
+        id: "rec-fcc-1",
+        priority: "medium",
+        timestamp: "12:11",
+        triggerType: "Catalyst Activity",
+        summary:
+          "Increase fresh catalyst addition by 0.4 t/d. Activity index trending down — model projects $26k/day from yield recovery.",
+        deltas: [
+          { parameter: "Cat addition", current: "2.1 t/d", recommended: "2.5 t/d", delta: "+0.4 t/d" },
+          { parameter: "Margin impact", current: "—", recommended: "+$26,000/day" },
+          { parameter: "Confidence", current: "—", recommended: "MEDIUM" },
+        ],
+        marginImpact: "+$26,000/day",
+        confidence: "MEDIUM",
+      },
+    ],
+  },
+  hcu: {
+    slug: "hcu",
+    name: "HCU",
+    fullName: "Hydrocracker Unit",
+    heroOpportunity: 215000,
+    heroTrend: 12.3,
+    kpis: [
+      { label: "Feed Rate", value: 28, unit: "K BPD", precision: 0, trend: -12.5, trendLabel: "vs target 32", status: "warning" },
+      { label: "Diesel Yield", value: 62.4, unit: "%", precision: 1, trend: -0.8, trendLabel: "vs plan" },
+      { label: "H2 Consumption", value: 1850, unit: "scf/bbl", precision: 0 },
+      { label: "Reactor ΔT", value: 48, unit: "°F", precision: 0 },
+    ],
+    constraints: [
+      {
+        id: "c-1",
+        unit: "HCU",
+        equipment: "HX-201 Fouling",
+        severity: "-15% capacity",
+        age: "3 days",
+        status: "active",
+        description: "Performance declining — monitor outlet temperature.",
+      },
+    ],
+    recommendations: [
+      {
+        id: "rec-hcu-1",
+        priority: "critical",
+        timestamp: "09:42",
+        triggerType: "Constraint Resolution",
+        summary:
+          "Schedule HX-201 cleaning during next planned maintenance window. Capacity loss of 4 kbpd is costing ~$72k/day.",
+        deltas: [
+          { parameter: "Capacity recovery", current: "28 kbpd", recommended: "32 kbpd", delta: "+4 kbpd" },
+          { parameter: "Margin impact", current: "—", recommended: "+$72,000/day" },
+          { parameter: "Confidence", current: "—", recommended: "HIGH" },
+        ],
+        marginImpact: "+$72,000/day",
+        confidence: "HIGH",
+      },
+    ],
+  },
+  reformer: {
+    slug: "reformer",
+    name: "Reformer",
+    fullName: "Catalytic Reformer",
+    heroOpportunity: 64000,
+    heroTrend: 3.2,
+    kpis: [
+      { label: "Feed Rate", value: 22, unit: "K BPD", precision: 0, trend: 0, trendLabel: "on target" },
+      { label: "Octane (RON)", value: 98.4, unit: "", precision: 1, trend: 0.2, trendLabel: "vs plan" },
+      { label: "H2 Production", value: 4.0, unit: "K BPD", precision: 1 },
+      { label: "Reactor Temp", value: 925, unit: "°F", precision: 0 },
+    ],
+    constraints: [],
+    recommendations: [
+      {
+        id: "rec-ref-1",
+        priority: "advisory",
+        timestamp: "10:55",
+        triggerType: "Severity Optimization",
+        summary:
+          "Bump reformer severity by 1°F. Octane premium widened in latest Argus update — small move, $14k/day upside.",
+        deltas: [
+          { parameter: "WAIT", current: "925°F", recommended: "926°F", delta: "+1°F" },
+          { parameter: "Margin impact", current: "—", recommended: "+$14,000/day" },
+          { parameter: "Confidence", current: "—", recommended: "MEDIUM" },
+        ],
+        marginImpact: "+$14,000/day",
+        confidence: "MEDIUM",
+      },
+    ],
+  },
+  blend: {
+    slug: "blend",
+    name: "Blend",
+    fullName: "Blending Unit",
+    heroOpportunity: 41000,
+    heroTrend: 2.1,
+    kpis: [
+      { label: "Throughput", value: 17, unit: "K BPD", precision: 0, trend: 0, trendLabel: "on target" },
+      { label: "Octane Giveaway", value: 0.4, unit: "R+M/2", precision: 1, status: "warning" },
+      { label: "RVP Margin", value: 0.3, unit: "psi", precision: 1 },
+      { label: "Tank Utilization", value: 78, unit: "%", precision: 0 },
+    ],
+    constraints: [
+      {
+        id: "c-3",
+        unit: "Blend",
+        equipment: "Staffing Constraint",
+        severity: "Manual override",
+        age: "This shift",
+        status: "temporary",
+        description: "Expires at shift end. Night shift has full staffing.",
+      },
+    ],
+    recommendations: [
+      {
+        id: "rec-blend-1",
+        priority: "medium",
+        timestamp: "11:30",
+        triggerType: "Giveaway Reduction",
+        summary:
+          "Tighten octane giveaway from 0.4 to 0.2. Switch RBOB recipe to favor reformate-heavy blend during day shift.",
+        deltas: [
+          { parameter: "Octane giveaway", current: "0.4", recommended: "0.2", delta: "-0.2" },
+          { parameter: "Margin impact", current: "—", recommended: "+$22,000/day" },
+          { parameter: "Confidence", current: "—", recommended: "MEDIUM" },
+        ],
+        marginImpact: "+$22,000/day",
+        confidence: "MEDIUM",
+      },
+    ],
+  },
+  storage: {
+    slug: "storage",
+    name: "Storage",
+    fullName: "Storage Terminal",
+    heroOpportunity: 18000,
+    heroTrend: 0.9,
+    kpis: [
+      { label: "Throughput", value: 85, unit: "K BPD", precision: 0, trend: -5.5, trendLabel: "vs target 90" },
+      { label: "Tank Utilization", value: 71, unit: "%", precision: 0 },
+      { label: "Vapor Recovery", value: 99.2, unit: "%", precision: 1 },
+      { label: "Pump Availability", value: 100, unit: "%", precision: 0 },
+    ],
+    constraints: [],
+    recommendations: [
+      {
+        id: "rec-storage-1",
+        priority: "advisory",
+        timestamp: "08:22",
+        triggerType: "Logistics",
+        summary:
+          "Open Tank T-407 for diesel rundown. Current rundown destination is approaching 92% — switch before next FCC kick.",
+        deltas: [
+          { parameter: "Rundown tank", current: "T-405", recommended: "T-407" },
+          { parameter: "Margin impact", current: "—", recommended: "+$8,000/day" },
+          { parameter: "Confidence", current: "—", recommended: "HIGH" },
+        ],
+        marginImpact: "+$8,000/day",
+        confidence: "HIGH",
+      },
+    ],
+  },
+};
+
 export const handoverEvents: HandoverEvent[] = [
   { timestamp: "14:23", description: "Naphtha yield recommendation acknowledged by J. Martinez", type: "action" },
   { timestamp: "13:45", description: "HX-201 fouling constraint confirmed (previously flagged at 09:15)", type: "constraint" },
