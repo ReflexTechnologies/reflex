@@ -1,6 +1,7 @@
 "use client";
 
 import { KPICard } from "@/components/ui/KPICard";
+import { AnimatedMetric } from "@/components/ui/AnimatedMetric";
 import type { KPICardData } from "@/types";
 
 /* ------------------------------------------------------------------ */
@@ -8,9 +9,8 @@ import type { KPICardData } from "@/types";
 /* ------------------------------------------------------------------ */
 
 const kpis: KPICardData[] = [
-  { label: "Inbound Today", value: 3, precision: 0, trend: 0, trendLabel: "scheduled" },
   { label: "Outbound Today", value: 5, precision: 0, trend: 1, trendLabel: "vs yesterday" },
-  { label: "Pipeline Throughput", value: 62, unit: "K BPD", precision: 0, trend: 3.5, trendLabel: "vs capacity" },
+  { label: "Pipeline Throughput", value: 62, unit: "K BPD", precision: 0, trend: 3.5, trendLabel: "vs target" },
   { label: "On-Time Rate", value: 94, unit: "%", precision: 0, trend: 2.0, trendLabel: "30-day avg" },
 ];
 
@@ -22,6 +22,10 @@ const inbound = [
   { date: "Apr 06", source: "Local Blend", volume: 5000, mode: "Truck" as const, status: "Scheduled" as const, eta: "10:30" },
   { date: "Apr 07", source: "Bakken Field", volume: 22000, mode: "Rail" as const, status: "Scheduled" as const, eta: "06:00" },
 ];
+
+const TODAY_LABEL = "Apr 05";
+const inboundTodayShipments = inbound.filter((r) => r.date === TODAY_LABEL);
+const inboundTodayBarrels = inboundTodayShipments.reduce((sum, r) => sum + r.volume, 0);
 
 const outbound = [
   { date: "Apr 05", destination: "Houston Terminal", product: "Gasoline", volume: 28000, mode: "Pipeline" as const, status: "In Transit" as const },
@@ -68,9 +72,31 @@ export default function LogisticsPage() {
         </div>
         <span className="text-xs font-mono text-[#9CA3AF]">Synced 12s ago</span>
       </div>
+      <p className="text-sm font-body text-[#6B7280] -mt-1">
+        Logistics overview &mdash; shows where feedstock is coming from and where finished product is going.
+      </p>
 
       {/* ---- KPI Strip ---- */}
       <div className="grid grid-cols-4 gap-3">
+        {/* Custom Inbound Today card — barrels primary, shipment count secondary */}
+        <div className="bg-white rounded border border-[#E5E7EB] shadow-[0_1px_3px_rgba(0,0,0,0.06)] p-4 flex flex-col gap-1">
+          <span className="text-xs font-headline uppercase tracking-wider text-[#9CA3AF]">
+            Inbound Today
+          </span>
+          <div className="flex items-baseline gap-2">
+            <AnimatedMetric
+              value={inboundTodayBarrels}
+              precision={0}
+              className="text-2xl font-semibold text-[#111827]"
+            />
+            <span className="text-xs font-body uppercase tracking-wider text-[#9CA3AF]">
+              bbl
+            </span>
+          </div>
+          <span className="text-xs font-mono text-[#9CA3AF]">
+            {inboundTodayShipments.length} shipments scheduled
+          </span>
+        </div>
         {kpis.map((kpi) => (
           <KPICard key={kpi.label} data={kpi} />
         ))}
