@@ -85,6 +85,24 @@ export interface ConstraintPattern {
   annotation?: string;
 }
 
+export interface CrudeSlate {
+  slate: string;
+  barrels: number;
+  daysOfSupply: number;
+}
+
+export interface UllageByProduct {
+  product: string;
+  barrels: number;
+}
+
+export interface ProductReady {
+  product: string;
+  barrels: number;
+  ullageRemaining: number;
+  alert?: "STORAGE FULL";
+}
+
 export interface WizardState {
   step: number;
   unit?: string;

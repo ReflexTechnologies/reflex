@@ -2,11 +2,21 @@
 
 import { KPICard } from "@/components/ui/KPICard";
 import type { KPICardData } from "@/types";
+import { crudeSlates, ullageByProduct, productReady } from "@/data/mock-data";
+
+// Derive headline KPIs from the breakdown data so the aggregate numbers
+// stay consistent with the per-slate / per-product panels below.
+const totalCrudeBarrels = crudeSlates.reduce((sum, s) => sum + s.barrels, 0);
+const weightedCrudeDays =
+  crudeSlates.reduce((sum, s) => sum + s.daysOfSupply * s.barrels, 0) /
+  (totalCrudeBarrels || 1);
+const totalUllage = ullageByProduct.reduce((sum, u) => sum + u.barrels, 0);
+const totalProductReady = productReady.reduce((sum, p) => sum + p.barrels, 0);
 
 const kpis: KPICardData[] = [
   {
     label: "Crude Supply Days",
-    value: 8.2,
+    value: weightedCrudeDays,
     unit: "days",
     precision: 1,
     trend: 0.5,
@@ -14,7 +24,7 @@ const kpis: KPICardData[] = [
   },
   {
     label: "Total Ullage",
-    value: 42000,
+    value: totalUllage,
     unit: "bbl",
     precision: 0,
     trend: -3.2,
@@ -22,7 +32,7 @@ const kpis: KPICardData[] = [
   },
   {
     label: "Product Ready",
-    value: 156,
+    value: totalProductReady / 1000,
     unit: "K bbl",
     precision: 0,
     trend: 4.1,
@@ -78,6 +88,87 @@ export default function InventoryPage() {
         {kpis.map((kpi) => (
           <KPICard key={kpi.label} data={kpi} />
         ))}
+      </div>
+
+      {/* Storage Breakdown — per-slate crude + per-product ullage/ready */}
+      <div className="grid grid-cols-2 gap-3">
+        {/* Crude Supply by Slate */}
+        <div>
+          <h2 className="text-xs font-headline uppercase tracking-wider text-[#9CA3AF] font-medium mb-3">
+            Crude Supply by Slate
+          </h2>
+          <div className="bg-white rounded border border-[#E5E7EB] shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-[#E5E7EB]">
+                  <th className="text-left px-4 py-3 text-[10px] font-headline uppercase tracking-wider text-[#9CA3AF]">Slate</th>
+                  <th className="text-right px-4 py-3 text-[10px] font-headline uppercase tracking-wider text-[#9CA3AF]">Barrels</th>
+                  <th className="text-right px-4 py-3 text-[10px] font-headline uppercase tracking-wider text-[#9CA3AF]">Days of Supply</th>
+                </tr>
+              </thead>
+              <tbody>
+                {crudeSlates.map((row, i) => (
+                  <tr
+                    key={row.slate}
+                    className={`border-b border-[#F3F4F6] last:border-0 ${i % 2 === 1 ? "bg-[#F9FAFB]" : ""}`}
+                  >
+                    <td className="px-4 py-2.5 text-sm font-body text-[#111827]">{row.slate}</td>
+                    <td className="px-4 py-2.5 text-right font-mono text-xs text-[#111827]">{row.barrels.toLocaleString()}</td>
+                    <td className="px-4 py-2.5 text-right font-mono text-xs text-[#111827]">{row.daysOfSupply.toFixed(1)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Storage by Product (combined ullage + product ready + full-storage flag) */}
+        <div>
+          <h2 className="text-xs font-headline uppercase tracking-wider text-[#9CA3AF] font-medium mb-3">
+            Storage by Product
+          </h2>
+          <div className="bg-white rounded border border-[#E5E7EB] shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-[#E5E7EB]">
+                  <th className="text-left px-4 py-3 text-[10px] font-headline uppercase tracking-wider text-[#9CA3AF]">Product</th>
+                  <th className="text-right px-4 py-3 text-[10px] font-headline uppercase tracking-wider text-[#9CA3AF]">Ready (bbl)</th>
+                  <th className="text-right px-4 py-3 text-[10px] font-headline uppercase tracking-wider text-[#9CA3AF]">Ullage (bbl)</th>
+                  <th className="text-left px-4 py-3 text-[10px] font-headline uppercase tracking-wider text-[#9CA3AF]">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {productReady.map((row, i) => {
+                  const isFull = row.alert === "STORAGE FULL";
+                  const isTight = !isFull && row.ullageRemaining > 0 && row.ullageRemaining < row.barrels * 0.25;
+                  const badgeClass = isFull
+                    ? "bg-red-50 text-[#DC2626]"
+                    : isTight
+                      ? "bg-amber-50 text-[#D97706]"
+                      : "bg-[#F0FDFA] text-[#0D9488]";
+                  const badgeLabel = isFull ? "STORAGE FULL" : isTight ? "TIGHT" : "OK";
+                  return (
+                    <tr
+                      key={row.product}
+                      className={`border-b border-[#F3F4F6] last:border-0 ${i % 2 === 1 ? "bg-[#F9FAFB]" : ""}`}
+                    >
+                      <td className="px-4 py-2.5 text-sm font-body text-[#111827]">{row.product}</td>
+                      <td className="px-4 py-2.5 text-right font-mono text-xs text-[#111827]">{row.barrels.toLocaleString()}</td>
+                      <td className="px-4 py-2.5 text-right font-mono text-xs text-[#111827]">{row.ullageRemaining.toLocaleString()}</td>
+                      <td className="px-4 py-2.5">
+                        <span
+                          className={`text-[10px] font-headline uppercase tracking-wider px-1.5 py-0.5 rounded-full ${badgeClass}`}
+                        >
+                          {badgeLabel}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
       {/* Tank Farm Overview */}

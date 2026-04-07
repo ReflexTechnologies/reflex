@@ -9,6 +9,9 @@ import type {
   DriftDataPoint,
   SensorHealthCell,
   ConstraintPattern,
+  CrudeSlate,
+  UllageByProduct,
+  ProductReady,
 } from "@/types";
 
 export const SITE = {
@@ -224,3 +227,31 @@ export const wizardConstraints: Record<string, { id: string; label: string }[]> 
     { id: "tank-level", label: "Tank Level Limit" },
   ],
 };
+
+// Inventory breakdowns — per-slate crude and per-product ullage/ready
+export const crudeSlates: CrudeSlate[] = [
+  { slate: "Sour", barrels: 145000, daysOfSupply: 3.2 },
+  { slate: "Yellow Wax", barrels: 62000, daysOfSupply: 1.4 },
+  { slate: "Utica", barrels: 98000, daysOfSupply: 2.1 },
+  { slate: "Bakken", barrels: 110000, daysOfSupply: 2.4 },
+  { slate: "Sweet WTI", barrels: 220000, daysOfSupply: 4.8 },
+];
+
+export const ullageByProduct: UllageByProduct[] = [
+  { product: "Crude", barrels: 215000 },
+  { product: "Gasoline", barrels: 84000 },
+  { product: "Diesel", barrels: 117000 },
+  { product: "Jet", barrels: 88000 },
+  { product: "Propane", barrels: 0 },
+  { product: "Butane", barrels: 12000 },
+  { product: "Asphalt", barrels: 34000 },
+];
+
+export const productReady: ProductReady[] = [
+  { product: "Propane", barrels: 50000, ullageRemaining: 0, alert: "STORAGE FULL" },
+  { product: "Butane", barrels: 22000, ullageRemaining: 12000 },
+  { product: "Gasoline", barrels: 316000, ullageRemaining: 84000 },
+  { product: "Diesel", barrels: 483000, ullageRemaining: 117000 },
+  { product: "Jet", barrels: 112000, ullageRemaining: 88000 },
+  { product: "Asphalt", barrels: 18000, ullageRemaining: 34000 },
+];
