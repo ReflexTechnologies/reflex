@@ -1,22 +1,20 @@
 "use client";
 
+import Link from "next/link";
 import { KPICard } from "@/components/ui/KPICard";
 import type { KPICardData } from "@/types";
+import {
+  sankeyNodes,
+  sankeyLinks,
+  refineryUnits,
+} from "@/data/mock-data";
 import ReactECharts from "echarts-for-react";
 
 /* ------------------------------------------------------------------ */
-/* Mock data                                                          */
+/* KPI strip                                                          */
 /* ------------------------------------------------------------------ */
 
 const kpis: KPICardData[] = [
-  {
-    label: "Total Throughput",
-    value: 412.8,
-    unit: "MBPD",
-    precision: 1,
-    trend: 2.1,
-    trendLabel: "vs yesterday",
-  },
   {
     label: "Network Efficiency",
     value: 94.5,
@@ -32,7 +30,7 @@ const kpis: KPICardData[] = [
     precision: 0,
   },
   {
-    label: "Feed Rate",
+    label: "Plant Feed Rate",
     value: 105,
     unit: "K BPD",
     precision: 0,
@@ -41,14 +39,21 @@ const kpis: KPICardData[] = [
   },
 ];
 
-const units = [
-  { name: "CDU", status: "Online" as const, throughput: 105, temp: 725, pressure: 42 },
-  { name: "FCC", status: "Online" as const, throughput: 38, temp: 985, pressure: 28 },
-  { name: "HCU", status: "Caution" as const, throughput: 28, temp: 780, pressure: 165 },
-  { name: "Reformer", status: "Online" as const, throughput: 22, temp: 925, pressure: 350 },
-  { name: "Blend", status: "Online" as const, throughput: 17, temp: 180, pressure: 15 },
-  { name: "Storage", status: "Online" as const, throughput: 85, temp: 95, pressure: 2 },
-];
+/* ------------------------------------------------------------------ */
+/* Sankey color logic                                                 */
+/* ------------------------------------------------------------------ */
+
+const COLOR_RED = "#DC2626";
+const COLOR_AMBER = "#D97706";
+const COLOR_GREEN = "#0D9488";
+
+function colorForRatio(ratio: number): string {
+  if (ratio < 0.9) return COLOR_RED;
+  if (ratio < 0.98) return COLOR_AMBER;
+  if (ratio <= 1.05) return COLOR_GREEN;
+  if (ratio <= 1.1) return COLOR_AMBER;
+  return COLOR_RED;
+}
 
 /* ------------------------------------------------------------------ */
 /* Sankey chart option                                                */
@@ -65,6 +70,26 @@ const sankeyOption: Record<string, unknown> = {
       fontFamily: "'IBM Plex Mono', monospace",
       fontSize: 12,
     },
+    formatter: (params: {
+      dataType?: string;
+      name?: string;
+      data: {
+        source?: string;
+        target?: string;
+        value?: number;
+        target_value?: number;
+        name?: string;
+      };
+    }) => {
+      if (params.dataType === "edge") {
+        const { source, target, value, target_value } = params.data;
+        const actual = value ?? 0;
+        const planned = target_value ?? 0;
+        const pct = planned > 0 ? Math.round((actual / planned) * 100) : 0;
+        return `${source} → ${target}<br/>${actual} / ${planned} kbpd <span style="color:#9CA3AF">(${pct}%)</span>`;
+      }
+      return `<b>${params.name ?? params.data?.name ?? ""}</b>`;
+    },
   },
   animation: true,
   animationDuration: 600,
@@ -77,7 +102,6 @@ const sankeyOption: Record<string, unknown> = {
       nodeGap: 12,
       nodeWidth: 20,
       lineStyle: {
-        color: "gradient",
         curveness: 0.5,
       },
       label: {
@@ -85,35 +109,15 @@ const sankeyOption: Record<string, unknown> = {
         fontSize: 11,
         color: "#111827",
       },
-      data: [
-        { name: "Crude Feed", itemStyle: { color: "#0D9488" } },
-        { name: "CDU", itemStyle: { color: "#0D9488" } },
-        { name: "FCC", itemStyle: { color: "#0D9488" } },
-        { name: "HCU", itemStyle: { color: "#0D9488" } },
-        { name: "Reformer", itemStyle: { color: "#14B8A6" } },
-        { name: "Blend", itemStyle: { color: "#14B8A6" } },
-        { name: "Gasoline Pool", itemStyle: { color: "#5EEAD4" } },
-        { name: "LPG", itemStyle: { color: "#5EEAD4" } },
-        { name: "Diesel Pool", itemStyle: { color: "#5EEAD4" } },
-        { name: "Naphtha", itemStyle: { color: "#5EEAD4" } },
-        { name: "Reformate", itemStyle: { color: "#5EEAD4" } },
-        { name: "H2", itemStyle: { color: "#5EEAD4" } },
-        { name: "Product Out", itemStyle: { color: "#5EEAD4" } },
-      ],
-      links: [
-        { source: "Crude Feed", target: "CDU", value: 105 },
-        { source: "CDU", target: "FCC", value: 38 },
-        { source: "CDU", target: "HCU", value: 28 },
-        { source: "CDU", target: "Reformer", value: 22 },
-        { source: "CDU", target: "Blend", value: 17 },
-        { source: "FCC", target: "Gasoline Pool", value: 32 },
-        { source: "FCC", target: "LPG", value: 6 },
-        { source: "HCU", target: "Diesel Pool", value: 24 },
-        { source: "HCU", target: "Naphtha", value: 4 },
-        { source: "Reformer", target: "Reformate", value: 18 },
-        { source: "Reformer", target: "H2", value: 4 },
-        { source: "Blend", target: "Product Out", value: 17 },
-      ],
+      data: sankeyNodes,
+      links: sankeyLinks.map((link) => ({
+        ...link,
+        lineStyle: {
+          color: colorForRatio(link.value / link.target_value),
+          opacity: 0.55,
+          curveness: 0.5,
+        },
+      })),
     },
   ],
 };
@@ -139,7 +143,7 @@ export default function RefineryFlowPage() {
       </div>
 
       {/* KPI strip */}
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-3 gap-3">
         {kpis.map((kpi) => (
           <KPICard key={kpi.label} data={kpi} />
         ))}
@@ -147,9 +151,25 @@ export default function RefineryFlowPage() {
 
       {/* Sankey chart card */}
       <div className="bg-white rounded border border-[#E5E7EB] shadow-[0_1px_3px_rgba(0,0,0,0.06)] p-4">
-        <h2 className="text-xs font-headline uppercase tracking-wider text-[#9CA3AF] font-medium mb-3">
-          Material Flow Network
-        </h2>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-xs font-headline uppercase tracking-wider text-[#9CA3AF] font-medium">
+            Material Flow Network
+          </h2>
+          <div className="flex items-center gap-3 text-[10px] font-headline uppercase tracking-wider text-[#9CA3AF]">
+            <span className="flex items-center gap-1">
+              <span className="inline-block w-2 h-2 rounded-sm bg-[#0D9488]" />
+              On target
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="inline-block w-2 h-2 rounded-sm bg-[#D97706]" />
+              ±2–10%
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="inline-block w-2 h-2 rounded-sm bg-[#DC2626]" />
+              Off target
+            </span>
+          </div>
+        </div>
         <ReactECharts
           option={sankeyOption}
           style={{ height: "400px", width: "100%" }}
@@ -164,10 +184,11 @@ export default function RefineryFlowPage() {
 
       {/* Unit Status grid */}
       <div className="grid grid-cols-3 gap-3">
-        {units.map((unit) => (
-          <div
-            key={unit.name}
-            className={`bg-white rounded border border-[#E5E7EB] shadow-[0_1px_3px_rgba(0,0,0,0.06)] p-4 border-l-4 ${
+        {refineryUnits.map((unit) => (
+          <Link
+            key={unit.slug}
+            href={`/units/${unit.slug}`}
+            className={`block bg-white rounded border border-[#E5E7EB] shadow-[0_1px_3px_rgba(0,0,0,0.06)] p-4 border-l-4 hover:shadow-md hover:border-[#CBD5E1] transition-all ${
               unit.status === "Caution"
                 ? "border-l-[#D97706]"
                 : "border-l-[#0D9488]"
@@ -202,7 +223,10 @@ export default function RefineryFlowPage() {
                   Throughput
                 </span>
                 <span className="text-xs font-mono text-[#111827]">
-                  {unit.throughput} K BPD
+                  {unit.throughput} K BPD{" "}
+                  <span className="text-[#9CA3AF]">
+                    (target: {unit.throughputTarget})
+                  </span>
                 </span>
               </div>
               <div className="flex justify-between">
@@ -222,7 +246,7 @@ export default function RefineryFlowPage() {
                 </span>
               </div>
             </div>
-          </div>
+          </Link>
         ))}
       </div>
     </div>
