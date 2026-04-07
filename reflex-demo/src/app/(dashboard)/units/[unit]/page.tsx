@@ -6,6 +6,7 @@ import clsx from "clsx";
 import { ChevronRight } from "lucide-react";
 import { AnimatedMetric } from "@/components/ui/AnimatedMetric";
 import { KPICard } from "@/components/ui/KPICard";
+import { UnitSelector } from "@/components/ui/UnitSelector";
 import { ConstraintStatusBadge } from "@/components/ui/StatusBadge";
 import { RecommendationCard } from "@/components/operations/RecommendationCard";
 import { ConstraintWizard } from "@/components/constraint-wizard/ConstraintWizard";
@@ -84,13 +85,16 @@ export default function UnitPage({
             </span>
           </div>
         </div>
-        <button
-          type="button"
-          onClick={() => setWizardOpen(true)}
-          className="px-4 py-2 rounded text-sm font-headline font-semibold bg-accent text-white hover:bg-accent-hover transition-colors cursor-pointer"
-        >
-          Submit Constraint
-        </button>
+        <div className="flex items-center gap-3">
+          <UnitSelector />
+          <button
+            type="button"
+            onClick={() => setWizardOpen(true)}
+            className="px-4 py-2 rounded text-sm font-headline font-semibold bg-accent text-white hover:bg-accent-hover transition-colors cursor-pointer"
+          >
+            Submit Constraint
+          </button>
+        </div>
       </div>
 
       {/* KPI strip */}

@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import { AnimatedMetric } from "@/components/ui/AnimatedMetric";
 import { KPICard } from "@/components/ui/KPICard";
+import { UnitSelector } from "@/components/ui/UnitSelector";
 import { RecommendationCard } from "@/components/operations/RecommendationCard";
 import { FlowNetworkChart } from "@/components/operations/FlowNetworkChart";
 import { ConstraintPanel } from "@/components/operations/ConstraintPanel";
@@ -25,16 +25,9 @@ function useToast(duration = 3000) {
 }
 
 export default function OperationsPage() {
-  const router = useRouter();
   const [wizardOpen, setWizardOpen] = useState(false);
   const [optimizeToast, showOptimizeToast] = useToast();
   const [exportToast, showExportToast] = useToast();
-
-  const handleUnitChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const v = e.target.value;
-    if (v === "all") return;
-    router.push(`/units/${v}`);
-  };
 
   const projection30 = (SITE.marginRatePerDay * 30) / 1_000_000;
   const projectionAnnual = (SITE.marginRatePerDay * 365) / 1_000_000;
@@ -73,18 +66,7 @@ export default function OperationsPage() {
 
           {/* Right: Unit selector + action buttons */}
           <div className="flex items-center gap-3">
-            <select
-              defaultValue="all"
-              onChange={handleUnitChange}
-              className="px-3 py-2 rounded text-sm font-body border border-surface-border bg-surface-card text-text-primary hover:border-accent focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent cursor-pointer"
-              aria-label="Scope dashboard to unit"
-            >
-              <option value="all">All Units (Plant View)</option>
-              <option value="cdu">CDU</option>
-              <option value="fcc">FCC</option>
-              <option value="hcu">HCU</option>
-              <option value="reformer">Reformer</option>
-            </select>
+            <UnitSelector />
             <button
               type="button"
               onClick={showOptimizeToast}
