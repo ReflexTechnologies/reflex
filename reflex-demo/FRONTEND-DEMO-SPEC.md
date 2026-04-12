@@ -14,12 +14,14 @@ Complete specification of every element in the Reflex demo frontend. This docume
 6. [Logistics & Scheduling](#6-logistics--scheduling)
 7. [Financial & Model Health (Analytics)](#7-financial--model-health-analytics)
 8. [Asset Management](#8-asset-management)
-9. [Compliance & Regulatory](#9-compliance--regulatory)
-10. [Risk Assessment](#10-risk-assessment)
-11. [Safety Management](#11-safety-management)
-12. [System Logs](#12-system-logs)
-13. [Settings](#13-settings)
-14. [Help & Support](#14-help--support)
+9. [Emissions](#9-emissions)
+10. [Model Drift Detail](#10-model-drift-detail)
+11. [Unit Detail Dashboard](#11-unit-detail-dashboard)
+12. [Risk Assessment](#12-risk-assessment)
+13. [System Logs](#13-system-logs)
+14. [Settings](#14-settings)
+15. [Help & Support](#15-help--support)
+16. [Dark Mode](#16-dark-mode)
 
 ---
 
@@ -33,10 +35,11 @@ A 48px-tall white bar pinned to the top of every dashboard page.
 |---------|-------------|
 | **Reflex logo** | Teal text "Reflex" in Space Grotesk bold. Static branding. |
 | **Site label** | "Valero Memphis" — the name of the refinery site being monitored. Shown in light gray next to the logo. |
-| **Nav tabs** | Four tabs that switch between high-level views: **Global View** (→ /operations), **Assets** (→ /assets), **Compliance** (→ /compliance), **Safety** (→ /safety). The active tab has a teal background tint. |
+| **Nav tabs** | Two tabs that switch between high-level views: **Global View** (→ /operations) and **Assets** (→ /assets). The active tab has a teal background tint. |
 | **Search bar** | A centered text input with placeholder "Search systems...". Decorative only — no backend search. Focus state shows teal ring. |
 | **Live Indicator** | A pulsing green dot with the word "Live" — indicates the system is receiving real-time data. Purely visual. |
 | **Connection dots** | Four small status dots labeled **PI**, **MKT**, **LP**, **AI**. These represent the four data pipelines Reflex depends on: PI System (sensor data), Market Data (pricing), LP Solver (optimization model), AI Engine (Claude Haiku recommendations). All show "connected" (green). |
+| **Theme toggle** | A sun/moon icon button between the connection dots and the user avatar. Clicking toggles between light and dark mode. Choice is persisted to `localStorage` and defaults to the OS `prefers-color-scheme` on first visit. |
 | **User avatar "JM"** | A teal circle with the operator's initials. **Clickable** — opens a dropdown menu with two options: "Profile" (navigates to /settings) and "Sign Out" (navigates to /login). Click outside to close. |
 
 ### 1.2 Sidebar (`Sidebar.tsx`)
@@ -102,22 +105,23 @@ This is the primary control surface — the screen an operator sees all day. It'
 
 | Element | Value | Meaning |
 |---------|-------|---------|
-| **Label** | "Total Realized Opportunity" | Cumulative dollar value Reflex has captured through optimization recommendations that operators acted on |
-| **Dollar figure** | **$1,247,832** | Animated counter (AnimatedMetric component). Represents total margin captured since system deployment. |
-| **Trend badge** | +14.2% | Percentage improvement vs. the previous comparison period. Shown in a teal pill. |
-| **Optimize Run button** | — | **Interactive** — clicking shows a teal toast notification: "Optimization run queued. Estimated completion: 2.3s". Auto-dismisses after 3 seconds. Simulates triggering a manual LP model re-solve. |
-| **Export Log button** | — | **Interactive** — clicking shows a dark toast: "Export started. File will download shortly." Auto-dismisses after 3 seconds. Simulates exporting the shift log as a file. |
+| **Label** | "Total Realized Opportunity" | Cumulative dollar value Reflex has captured through optimization |
+| **Dollar figure** | **$1.2M / day** | Rate-based metric (AnimatedMetric component). Shows the daily margin rate, not a cumulative total. |
+| **Trend badge** | +14.2% | Percentage improvement vs. the previous period. Shown in a teal pill. |
+| **Projection line** | "30-day projection: $36M · Annual projection: $438M" | Forward projections based on current daily rate |
+| **Unit selector** | Dropdown: "All Units (Plant View)" | Options: CDU, FCC, HCU, Reformer, Blend, Storage. Selecting a unit navigates to `/units/{slug}`. Shared `UnitSelector` component also appears on `/units/[unit]` pages. |
+| **Optimize Run button** | — | **Interactive** — shows teal toast: "Optimization run queued. Estimated completion: 2.3s". Auto-dismisses after 3 seconds. |
+| **Export Log button** | — | **Interactive** — shows card-style toast: "Export started. File will download shortly." Auto-dismisses. |
 
-### 3.2 KPI Cards Row (4 cards)
+### 3.2 KPI Cards Row (3 cards)
 
 Each card uses the `KPICard` component which displays a label, animated value, unit, and a sparkline trend.
 
-| Card | Value | Unit | Sparkline Trend | Meaning |
-|------|-------|------|-----------------|---------|
-| **Throughput** | 412.8 | MBPD (thousand barrels per day) | 390 → 412.8 ↑ | Total crude processing volume across all units. Healthy refineries target their nameplate capacity (105K BPD for this site, but MBPD includes all product streams). |
-| **Energy Index** | 88.4 | EEI (Energy Efficiency Index) | 85 → 88.4 ↑ | Composite measure of how efficiently the plant converts energy inputs (fuel, steam, electricity) into product output. 0–100 scale, higher is better. 88.4 is strong. |
-| **Safety Health** | 0.98 | (unitless, 0–1 scale) | 0.95 → 0.98 ↑ | Composite safety score rolling up incident rate, near-miss frequency, equipment inspection pass rate, and safety compliance percentage. 0.98 = 98% safety health. |
-| **Emissions** | 14.2 | MT/d (metric tons per day) | 15.1 → 14.2 ↓ | Daily emissions output (CO2-equivalent or criteria pollutants). Downward trend is positive — the system is finding more efficient operating points. Status: "healthy" (green). |
+| Card | Value | Unit | Sparkline | Meaning |
+|------|-------|------|-----------|---------|
+| **Throughput** | 412.8 | MBPD | 390 → 412.8 ↑ | Total crude processing volume. Sparkline label: "daily avg" |
+| **Energy Index** | 88.4 | EEI | 85 → 88.4 ↑ | Composite energy efficiency. Higher is better. |
+| **Emissions** | 14.2 | MT/d | 15.1 → 14.2 ↓ | Daily emissions. **Clickable** — links to /emissions detail page. Status: "healthy" (green). |
 
 ### 3.3 Recommendation Feed (left column, 55% width)
 
@@ -210,12 +214,18 @@ A 5-step guided modal (`ConstraintWizard` component) for adding operational cons
 | Step | Title | Content | Options |
 |------|-------|---------|---------|
 | 1 | Select Unit | Grid of unit buttons | Unit 2 — CDU, Unit 3 — FCC, Unit 4 — HCU, Unit 6 — Reformer, Blend |
-| 2 | Constraint Type | Category selection | Equipment Issue, Feed Quality, Safety, Staffing |
+| 2 | Constraint Type | Category selection | Equipment Issue, Feed Quality, Safety, Staffing, **Other (Describe Manually)** |
 | 3 | Specific Constraint | Depends on unit selected (e.g., for Unit 2: HX-201 Fouling, Pump P-202 Vibration, Valve V-203 Sticking) | Dynamic list filtered by unit |
 | 4 | Severity & Duration | Slider for severity (1–10), duration dropdown | Severity scale, duration options |
 | 5 | Confirm | Summary of all selections | Confirm or go back |
 
 The wizard has a step indicator at the top, animated slide transitions, and a close button. The LP model would incorporate the new constraint in its next solve cycle.
+
+> **Manual / Free-Form mode (Step 2 → "Other"):** When the operator selects "Other (Describe Manually)", Step 3 changes from a predefined constraint grid to a free-text form:
+> - **Short Title** (optional): text input, max 80 characters, placeholder "e.g. P-101 bearing concern"
+> - **Description** (required): textarea, minimum 20 characters, with a live character counter showing "{count} / 20". Placeholder: "e.g. Pump P-101 is making unusual vibrations, suspect bearing failure within 24 hours..."
+> - The "Continue to Review" button is disabled until the description reaches 20 characters.
+> - In the Step 5 confirmation view, manual entries display in a bordered card with a "Manual" badge rather than the standard constraint label.
 
 ---
 
@@ -264,9 +274,16 @@ Crude Feed (105K) → CDU
 - **Blend**: Final product blending to meet specifications
 - **Product nodes**: Gasoline Pool, LPG, Diesel Pool, Naphtha, Reformate, H2, Product Out
 
-Color gradient: dark teal (upstream) → light teal (downstream). Hover shows flow volume.
+**Link color-coding:** Links are colored by the ratio of actual flow to planned flow:
+- **Green (teal)**: On target (ratio 0.98–1.05)
+- **Amber**: Slightly off (ratio 0.90–0.98 or 1.05–1.10)
+- **Red**: Off target (ratio < 0.90 or > 1.10)
+
+Tooltip shows: "Source → Target, actual / planned kbpd (pct%)"
 
 ### 4.4 Unit Status Grid (6 cards, 3 columns)
+
+Each card is a **clickable link** — clicking navigates to the per-unit dashboard at `/units/{slug}` (see Section 11).
 
 Each card shows one processing unit with a colored left border:
 
@@ -328,6 +345,33 @@ Each card has a teal fill-level progress bar. TK-501 shows "Testing" quality sta
 
 Alternating row backgrounds. Monospace font for numeric values.
 
+### 5.4 Crude Slate Breakdown
+
+Per-slate crude supply data derived from `crudeSlates` mock data:
+
+| Slate | Barrels | Days of Supply |
+|-------|---------|----------------|
+| Sweet WTI | 220,000 | 4.8 |
+| Sour | 145,000 | 3.2 |
+| Bakken | 110,000 | 2.4 |
+| Utica | 98,000 | 2.1 |
+| Yellow Wax | 62,000 | 1.4 |
+
+KPI headline values (Crude Supply Days, Total Ullage, Product Ready) are now **derived** from the per-slate and per-product data rather than hardcoded.
+
+### 5.5 Product Ullage & Ready Inventory
+
+| Product | Ullage (bbl) | Ready (bbl) | Alert |
+|---------|-------------|-------------|-------|
+| Propane | 0 | 50,000 | **STORAGE FULL** (red badge) |
+| Butane | 12,000 | 22,000 | — |
+| Gasoline | 84,000 | 316,000 | — |
+| Diesel | 117,000 | 483,000 | — |
+| Jet | 88,000 | 112,000 | — |
+| Asphalt | 34,000 | 18,000 | — |
+
+The **STORAGE FULL** flag on Propane indicates zero ullage remaining — the tank farm cannot accept additional propane production until product is shipped out. This constraint should be visible in the LP model.
+
 ---
 
 ## 6. Logistics & Scheduling
@@ -339,9 +383,9 @@ Alternating row backgrounds. Monospace font for numeric values.
 
 | Card | Value | Unit | Trend | Meaning |
 |------|-------|------|-------|---------|
-| **Inbound Today** | 3 | shipments | 0 (scheduled) | Number of feedstock deliveries expected today |
-| **Outbound Today** | 5 | shipments | +1 vs yesterday | Number of product shipments going out today |
-| **Pipeline Throughput** | 62 | K BPD | +3.5% vs capacity | Volume flowing through pipeline connections |
+| **Inbound Today** | 48,200 | bbl | 3 scheduled shipments | Now shows **total barrels** as the primary metric (e.g. "48,200 bbl") with the number of scheduled shipments as secondary text below. Previously showed shipment count only. |
+| **Outbound Today** | 5 | shipments | +1 vs target | Number of product shipments going out today |
+| **Pipeline Throughput** | 62 | K BPD | +3.5% vs target | Volume flowing through pipeline connections |
 | **On-Time Rate** | 94 | % | +2.0% 30-day avg | Percentage of shipments arriving/departing on schedule |
 
 ### 6.2 Inbound Feedstock Table (6 rows)
@@ -398,14 +442,15 @@ Each card has a progress bar filled to the mode's percentage.
 ### 7.2 Chart Grid (2x2, 55%/45% split)
 
 **Top-left: Waterfall Chart** (`WaterfallChart` component)
-- Shows margin contribution by unit: CDU ($420K), FCC ($380K), HCU ($260K), Blend ($180K)
-- Has a time range toggle: 30d / 90d / YTD
-- Visualizes where value is being created in the refinery
+- Now shows a **rate-based** view: default mode is **$/day** with a toggle to switch to **Cumulative**
+- Time range toggle: **1d / 7d / 30d** (changed from 30d/90d/YTD)
+- Two summary bars: "Margin Captured" (teal) and "Additional Opportunity" (gray), followed by per-unit contribution bars
+- All bars use the same teal color for unit contributions; the "Additional Opportunity" bar uses neutral gray
 
 **Top-right: Drift Chart** (`DriftChart` component)
-- Dual-line chart: solid line = LP model predicted values, dashed line = actual plant values
-- 90-day window. First 30 days: lines overlap perfectly. After day 30: actual values start drifting down (8.0 → ~7.58)
-- This shows "model drift" — the LP model's predictions diverging from reality, indicating the model may need recalibration (catalyst aging, fouling, etc.)
+- Title is now a **clickable link**: "Model Drift — by Equipment" → navigates to `/model-drift`
+- "View detail →" link also navigates to `/model-drift`
+- Below the chart: a 4-column grid of equipment area cards showing predicted→actual values and delta with color-coded status (green ok, amber watch, red drift)
 
 **Bottom-left: Sensor Health Matrix** (`SensorHealthMatrix` component)
 - Grid with units (rows) × sensor types (columns): Temp, Pressure, Flow, Level, Comp (composition)
@@ -481,72 +526,163 @@ A vertical timeline with color-coded dots by maintenance type:
 
 ---
 
-## 9. Compliance & Regulatory
+## 9. Emissions
 
-**Route:** `/compliance`  
-**Header tab:** Compliance
+**Route:** `/emissions`
+**Accessed from:** Operations KPI "Emissions" card (clickable)
 
-### 9.1 KPI Strip (4 cards)
+### 9.1 Page Header
 
-| Card | Value | Meaning |
-|------|-------|---------|
-| **Active Regulations** | 12 | Number of regulatory requirements being tracked |
-| **Compliance Rate** | 98.5% | Percentage of regulations in full compliance |
-| **Upcoming Audits** | 2 | External audits scheduled in the near term |
-| **Certifications** | 8 | Active third-party certifications held |
+Title "Emissions" with subtitle "Equipment-level pollutant rates and EPA limit utilization"
 
-### 9.2 Regulatory Tracker Table (10 regulations)
+### 9.2 KPI Strip (4 cards)
 
-| Regulation | Agency | Status | Due Date | Last Review | Owner |
-|-----------|--------|--------|----------|-------------|-------|
-| Clean Air Act - MACT Standards | EPA | Compliant (green) | 2026-06-30 | 2026-03-15 | L. Garcia |
-| OSHA PSM - Process Safety Mgmt | OSHA | Compliant | 2026-09-01 | 2026-02-20 | R. Kim |
-| SPCC Plan - Oil Spill Prevention | EPA | Compliant | 2026-07-15 | 2026-01-10 | L. Garcia |
-| Wastewater Discharge Permit | State DEQ | **Pending Review** (amber) | 2026-04-30 | 2025-12-05 | L. Garcia |
-| Air Quality Operating Permit | State DEQ | Compliant | 2026-12-01 | 2026-03-01 | M. Chen |
-| RCRA Hazardous Waste Permit | EPA | Compliant | 2026-08-15 | 2026-02-28 | T. Nguyen |
-| RMP - Risk Management Plan | EPA | **Pending Review** (amber) | 2026-05-15 | 2025-11-20 | R. Kim |
-| Benzene NESHAP Compliance | EPA | Compliant | 2026-10-01 | 2026-03-10 | L. Garcia |
-| OSHA Respiratory Protection | OSHA | **Action Required** (red) | 2026-04-15 | 2025-10-15 | R. Kim |
-| Stormwater Pollution Prevention | State DEQ | Compliant | 2026-11-30 | 2026-01-25 | T. Nguyen |
+| Card | Value | Unit | Status | Meaning |
+|------|-------|------|--------|---------|
+| **Total SOx (today)** | 8.4 | t/day | Healthy (green) | Total sulfur oxide emissions across all equipment |
+| **Total NOx (today)** | 5.2 | t/day | Healthy | Total nitrogen oxide emissions |
+| **Wet Gas Scrubber Output** | 92 | % efficiency | Healthy | Efficiency of the primary emissions control system |
+| **Closest to Limit** | 92 | % of EPA limit | **Critical** (red) | FCC Regenerator 1-hour SOx rolling average is at 92% of the EPA permit limit |
 
-### 9.3 Certifications (4 cards, 2x2 grid)
+### 9.3 Equipment Breakdown Table
 
-| Certification | Issuing Body | Expiry | Days Remaining | Bar Color |
-|--------------|-------------|--------|----------------|-----------|
-| ISO 14001 | Bureau Veritas | 2027-03-15 | 344d | Teal (>90 days) |
-| ISO 45001 | DNV GL | 2026-11-20 | 229d | Teal |
-| API 653 | American Petroleum Institute | 2026-05-27 | **52d** | **Amber** (30–90 days) |
-| OSHA PSM | OSHA VPP Star | 2026-09-10 | 158d | Teal |
+Sortable table with columns: Equipment, Pollutant, Current (lb/hr), 1h avg, 24h avg, 7d avg, 365d avg, EPA limit, % of limit.
 
-### 9.4 Upcoming Audits (2 cards)
+% of limit column is **color-coded** by threshold:
+- **Green (teal)**: < 70% of limit
+- **Amber**: 70–90% of limit
+- **Red**: > 90% of limit
 
-| Audit | Auditor | Date | Scope | Preparation |
-|-------|---------|------|-------|-------------|
-| EPA Compliance Inspection | EPA Region 6 | 2026-05-12 | Air emissions, wastewater discharge, hazardous waste handling, SPCC plan | 72% (teal bar) |
-| ISO 14001 Surveillance Audit | Bureau Veritas | 2026-06-08 | Environmental management system effectiveness, corrective actions | 45% (teal bar) |
+6 equipment rows sourced from `equipmentEmissions` mock data, sorted by % of limit descending.
+
+### 9.4 EPA Limit Utilization Chart
+
+Horizontal bar chart (ECharts) showing each equipment's % of EPA limit. Bars are color-coded using the same green/amber/red thresholds.
+
+Legend: green (< 70%), amber (70–90%), red (> 90%)
+
+### 9.5 "Why This Matters" Callout
+
+A teal-accented callout card explaining: EPA emissions limits act as hard constraints in the LP model. Exceeding 1-hour or 365-day rolling averages incurs fines and consent-decree exposure, so the optimizer must know how close each emitter is to its caps before recommending yield or throughput changes.
 
 ---
 
-## 10. Risk Assessment
+## 10. Model Drift Detail
+
+**Route:** `/model-drift`
+**Accessed from:** Analytics page (clickable chart title or "View detail →" link)
+
+### 10.1 Page Header
+
+Breadcrumb: "← Back to Reports" (links to /analytics)
+Title: "Model Drift Detail"
+Status badge: "Drift Detected" (amber)
+Subtitle: "LP coefficient relationships diverging from real plant behavior"
+
+### 10.2 KPI Strip (4 cards)
+
+| Card | Value | Unit | Status | Meaning |
+|------|-------|------|--------|---------|
+| **Overall Drift** | 2.55 | % | Warning (amber) | Weighted average drift across all equipment areas |
+| **Worst Area** | 4.75 | % Reactor | Warning | The equipment area with the highest drift. Caption: "HX close behind" |
+| **Last Recalibration** | 48 | days ago | — | How long since the LP model was last recalibrated. Shows date: 2026-02-18 |
+| **7-Day Trend** | 0.34 | % delta | Worsening (-8%) | Rate of drift change over the past week |
+
+### 10.3 Equipment-Area Breakdown Table (left column, 55%)
+
+**Interactive** — clicking a row selects it and updates the drift chart to show that area's predicted vs. actual data.
+
+| Area | Predicted | Actual | Δ | Δ % | 7-Day Sparkline | Status |
+|------|-----------|--------|---|-----|-----------------|--------|
+| Heat Exchanger | 412 °F outlet | 397 | -15 | -3.64% | amber sparkline ↓ | **Drift** (red badge) |
+| Reactor | 8.0 % yield | 7.62 | -0.38 | -4.75% | amber sparkline ↓ | **Drift** (red) |
+| Fractionator | 65.2 % conv | 64.1 | -1.1 | -1.69% | amber sparkline ↓ | **Watch** (amber) |
+| Blender | 87.5 RVP | 87.4 | -0.1 | -0.11% | flat sparkline | **OK** (green) |
+
+### 10.4 Drift Chart (right column, 45%)
+
+Uses the `DriftChart` component with `equipmentArea` prop and `hideHeader`. Shows predicted (solid teal line) vs actual (dashed gray line) for the selected area over 30 days.
+
+A dropdown selector at the top-right allows switching areas without clicking the table.
+
+### 10.5 "What is model drift?" Callout
+
+Teal-accented explainer: Model drift means the LP's coefficient relationships have diverged from real plant behavior. Drift typically lives in reactors (catalyst aging), heat exchangers (fouling), fractionators (composition shifts), and blenders (component property drift). When drift exceeds ~3% in a critical area, the LP should be recalibrated.
+
+---
+
+## 11. Unit Detail Dashboard
+
+**Route:** `/units/[unit]` where `[unit]` is one of: `cdu`, `fcc`, `hcu`, `reformer`, `blend`, `storage`
+**Accessed from:** Refinery Flow unit status cards (clickable), or Unit Selector dropdown
+
+### 11.1 Page Structure
+
+- **Breadcrumb**: "Refinery Flow > {Unit Name}" with the first segment linking back to /refinery-flow
+- **Unit Selector**: Same shared dropdown as Operations page, allowing direct navigation between units
+- **"Submit Constraint" button**: Opens the Constraint Wizard modal
+
+### 11.2 Hero Metric
+
+Shows the unit's daily optimization opportunity:
+- **Label**: "Optimization Opportunity"
+- **Value**: Dollar amount per day (e.g. CDU shows "$142,000 / day")
+- **Trend badge**: Percentage change (e.g. "+8.4%")
+- **Unit badge**: Short name pill (e.g. "CDU")
+
+### 11.3 KPI Strip (4 cards, unit-specific)
+
+Each unit has its own set of 4 KPIs. Example for CDU:
+
+| Card | Value | Unit | Trend |
+|------|-------|------|-------|
+| Feed Rate | 105 | K BPD | -4.5% vs target 110 |
+| Naphtha Yield | 18.2 | % | +0.6% vs plan |
+| Energy Index | 92.1 | EEI | -1.2% vs plan |
+| Tower DP | 6.4 | psi | — |
+
+### 11.4 Recommendations (left column, 55%)
+
+Filtered to the current unit's recommendations. Uses the same `RecommendationCard` component as Operations. Shows "{count} active" badge. Some units have no recommendations — shows "No recommendations for this unit right now."
+
+### 11.5 Active Constraints (right column, 45%)
+
+Filtered to the current unit's constraints. Each constraint card has a colored left border by status (amber = active, blue = monitoring, gray = temporary). Shows a count badge. Some units have no active constraints.
+
+### 11.6 Available Units
+
+| Slug | Name | Full Name | Hero Opportunity |
+|------|------|-----------|-----------------|
+| cdu | CDU | Crude Distillation Unit | $142,000/day |
+| fcc | FCC | Fluid Catalytic Cracker | $88,000/day |
+| hcu | HCU | Hydrocracker | $64,000/day |
+| reformer | Reformer | Catalytic Reformer | $44,000/day |
+| blend | Blend | Product Blending | $28,000/day |
+| storage | Storage | Tank Farm & Storage | $18,000/day |
+
+---
+
+## 12. Risk Assessment
 
 **Route:** `/risk-assessment`  
 **Sidebar label:** Risk Assessment
 
-### 10.1 Page Header
+### 12.1 Page Header
 
-Status badge: **"7 Active Risks"** in amber (unlike most pages which show green "System Normal").
+Status badge: **"4 Active Risks"** in amber (unlike most pages which show green "System Normal").
 
-### 10.2 KPI Strip (4 cards)
+> This view focuses on risks that affect LP model planning (Operational and Environmental categories). Safety, HR, financial, and general compliance risks are tracked separately by their respective departments.
+
+### 12.2 KPI Strip (4 cards)
 
 | Card | Value | Status | Meaning |
 |------|-------|--------|---------|
-| **Active Risks** | 7 | — | Total number of tracked risks currently open |
-| **Critical** | 2 | Warning (amber) | Number of risks with scores > 8.0 |
-| **Avg Risk Score** | 6.4 / 10 | — | Average severity across all active risks |
-| **Mitigated This Month** | 3 | +2 vs last month | Risks successfully closed or reduced to acceptable levels |
+| **Active Risks** | 4 | — | Filtered to LP-relevant risks only |
+| **Critical** | 1 | Warning (amber) | Risks with scores > 8.0 |
+| **Avg Risk Score** | 6.1 / 10 | — | Average across active risks |
+| **Mitigated This Month** | 3 | +2 vs last month | — |
 
-### 10.3 Risk Heatmap (ECharts, left column)
+### 12.3 Risk Heatmap (ECharts, left column)
 
 A 5x5 matrix with:
 - **X-axis (Impact):** Negligible, Minor, Moderate, Major, Catastrophic
@@ -557,98 +693,38 @@ A 5x5 matrix with:
 
 | Position | Impact × Likelihood | Score |
 |----------|-------------------|-------|
-| Major × Likely | 8.5 | High — crude supply pricing risk |
 | Catastrophic × Possible | 9.2 | Critical — FCC catalyst attrition |
-| Moderate × Unlikely | 4.8 | Medium — insurance premium risk |
+| Catastrophic × Unlikely | 6.9 | Medium-High — 365-day SOX emissions cap |
 | Minor × Possible | 5.1 | Medium — reformer tube thinning |
 | Major × Rare | 3.2 | Low — CDU corrosion |
-| Moderate × Likely | 7.0 | High — H2S detector drift |
-| Catastrophic × Unlikely | 6.9 | Medium-High — wastewater pH risk |
 
-### 10.4 Active Risks Table (7 risks, right column)
+### 12.4 Active Risks Table (4 risks, right column)
 
 | ID | Description | Category | Score | Owner | Status |
 |----|------------|----------|-------|-------|--------|
 | RSK-041 | FCC regenerator catalyst attrition above threshold | Operational (blue) | **9.2** | M. Chen | Open (red) |
-| RSK-038 | Crude supply contract renewal pricing risk | Financial (amber) | **8.5** | J. Patel | Open (red) |
-| RSK-035 | H2S detector calibration drift in alkylation unit | Safety (red) | 7.0 | R. Kim | Mitigating (amber) |
-| RSK-033 | Wastewater discharge pH exceedance probability | Environmental (green) | 6.9 | L. Garcia | Mitigating (amber) |
+| RSK-033 | Approaching 365-day SOX emissions cap — may force switch to lower-sulfur crude slate | Environmental (green) | 6.9 | L. Garcia | Mitigating (amber) |
 | RSK-030 | Reformer tube wall thinning above forecast | Operational (blue) | 5.1 | T. Nguyen | Monitoring (blue) |
-| RSK-028 | Insurance premium increase due to incident rate | Financial (amber) | 4.8 | J. Patel | Monitoring (blue) |
 | RSK-025 | CDU overhead corrosion rate exceeding inspection plan | Operational (blue) | 3.2 | M. Chen | Monitoring (blue) |
 
 Each row has a colored left border matching its category.
 
-### 10.5 Risk Trend Chart (bottom, full width)
+### 12.5 Risk Trend Chart (bottom, full width)
 
 A line chart showing **Total Risk Score over 12 months** (May → April). The trend line shows steady improvement: 52 → 40, with a teal area fill and smooth curve.
 
 ---
 
-## 11. Safety Management
-
-**Route:** `/safety`  
-**Header tab:** Safety
-
-### 11.1 Hero Metric
-
-A prominent card with teal left border accent:
-- **"Days Without Recordable Incident"**
-- **247** (animated counter, large teal text)
-- "Plant record: 312 days"
-
-### 11.2 KPI Strip (4 cards)
-
-| Card | Value | Unit | Meaning |
-|------|-------|------|---------|
-| **TRIR** | 0.42 | — | Total Recordable Incident Rate — industry standard safety metric. Calculated as (incidents × 200,000) / total hours worked. 0.42 is excellent (industry average ~0.5 for refineries). |
-| **Near Misses This Month** | 3 | — | Incidents that could have resulted in injury but didn't. Tracking near misses is a leading indicator. |
-| **Open Work Permits** | 12 | — | Active permits for hazardous work (hot work, confined space, etc.) |
-| **Training Completion** | 96 | % | Percentage of required safety training completed by staff |
-
-### 11.3 Incident Log Table (10 incidents, left column)
-
-| Date | Type | Severity | Location | Description | Status |
-|------|------|----------|----------|-------------|--------|
-| 2026-04-02 | Near Miss (amber dot) | Medium | FCC Unit | Scaffold plank dislodged during maintenance access | Investigating (amber) |
-| 2026-03-28 | First Aid (teal dot) | Low | CDU | Minor hand laceration during gasket replacement | Closed (green) |
-| 2026-03-15 | Spill (blue dot) | Medium | Tank Farm | Small diesel spill during tank gauging — 2 gal contained | Investigating |
-| 2026-03-01 | Near Miss | Low | Reformer | Dropped wrench from elevated platform — area was clear | Closed |
-| 2026-02-14 | Environmental (purple dot) | Low | Wastewater | Brief pH excursion in outfall — auto-corrected within 10 min | Closed |
-| 2026-01-20 | First Aid | Low | HCU | Chemical splash on arm — immediate decon, no injury | Closed |
-| 2025-12-05 | **Fire** (red dot) | **High** | Alkylation | Small pump seal fire — extinguished in 45s by operator | Closed |
-| 2025-11-18 | Near Miss | Medium | Blending | Pressure relief valve lifted during startup — no release | Closed |
-| 2025-10-30 | Spill | Low | Loading Rack | Hose drip during truck loading — 0.5 gal on pad | Closed |
-| 2025-10-10 | First Aid | Low | CDU | Heat stress event during turnaround — worker treated on-site | Open (red) |
-
-### 11.4 Active Work Permits (5 cards, right column)
-
-Each permit card has a colored left border by type:
-
-| Permit ID | Type | Location | Valid Until | Holder | Border Color |
-|-----------|------|----------|-------------|--------|-------------|
-| WP-2026-0412 | Hot Work | FCC Regenerator Level 3 | 2026-04-05 18:00 | D. Martinez | Red |
-| WP-2026-0411 | Confined Space | CDU Overhead Drum D-101 | 2026-04-05 16:00 | A. Johnson | Amber |
-| WP-2026-0410 | Line Break | HCU Feed Line L-204 | 2026-04-06 12:00 | K. Williams | Blue |
-| WP-2026-0409 | Excavation | Tank Farm Road B South | 2026-04-07 17:00 | S. Brown | Teal |
-| WP-2026-0408 | Elevated Work | Reformer Stack Platform | 2026-04-05 15:00 | P. Davis | Purple |
-
-### 11.5 TRIR Trend Chart (bottom, full width)
-
-A 24-month line chart showing TRIR declining from 0.80 (May 2024) to 0.42 (April 2026). A dashed red horizontal line at 0.5 marks the "Industry Avg" — the plant has been below industry average since mid-2025.
-
----
-
-## 12. System Logs
+## 13. System Logs
 
 **Route:** `/logs`  
 **Sidebar label:** Logs
 
-### 12.1 Page Header
+### 13.1 Page Header
 
 Title "System Logs" with a LiveIndicator component (pulsing dot + "Live"). Sync indicator: "Last sync: 4s ago".
 
-### 12.2 Filter Bar (interactive)
+### 13.2 Filter Bar (interactive)
 
 Three filter mechanisms, all functional:
 
@@ -663,7 +739,7 @@ Three filter mechanisms, all functional:
 
 All filters combine — selecting "API" type + "Error" severity shows only API errors.
 
-### 12.3 Log Table (30 entries)
+### 13.3 Log Table (30 entries)
 
 Grid-based layout with columns: Timestamp, Type, Severity, Source, Message.
 
@@ -694,22 +770,22 @@ Grid-based layout with columns: Timestamp, Type, Severity, Source, Message.
 | log-023 | Error | PI Server 3 connection lost — failover initiated | Sensor data source failed, automatic failover to backup server |
 | log-028 | **Critical** | LP model infeasible — constraint conflict detected | The optimization model couldn't find a valid solution. IIS analysis identified conflicting constraints. |
 
-### 12.4 Pagination Bar
+### 13.4 Pagination Bar
 
 Shows "1–{filtered count} of 142 entries" with Previous/Next buttons. Pagination is decorative (all 30 mock entries show on one page).
 
 ---
 
-## 13. Settings
+## 14. Settings
 
 **Route:** `/settings`  
 **Sidebar label:** Settings
 
-### 13.1 Tab Navigation (4 tabs, all interactive)
+### 14.1 Tab Navigation (4 tabs, all interactive)
 
 **Profile | Integrations | Notifications | System**
 
-### 13.2 Profile Tab
+### 14.2 Profile Tab
 
 User profile form for J. Martinez:
 
@@ -725,7 +801,7 @@ User profile form for J. Martinez:
 
 Save Changes (teal) and Cancel buttons at bottom.
 
-### 13.3 Integrations Tab (6 cards, 3 columns)
+### 14.3 Integrations Tab (6 cards, 3 columns)
 
 | Integration | Icon | Connected | Detail | Last Activity |
 |------------|------|-----------|--------|--------------|
@@ -736,7 +812,7 @@ Save Changes (teal) and Cancel buttons at bottom.
 | Teams | MessageSquare | Yes | #reflex-alerts channel | Last message: 8m ago |
 | ERP System | Server | **No** (red dot) | Not configured | "Configure" button |
 
-### 13.4 Notifications Tab
+### 14.4 Notifications Tab
 
 **Notification preferences matrix:**
 
@@ -753,7 +829,7 @@ All checkboxes are **interactive** — clicking toggles each notification channe
 
 **Quiet Hours** section with toggle switch (on by default): From 22:00 to 06:00. Suppresses non-critical notifications during off hours. Time inputs are editable.
 
-### 13.5 System Tab
+### 14.5 System Tab
 
 **System Information:**
 | Field | Value |
@@ -776,12 +852,12 @@ Action buttons: "Contact Administrator" and "Export System Report" (decorative).
 
 ---
 
-## 14. Help & Support
+## 15. Help & Support
 
 **Route:** `/support`  
 **Sidebar label:** Support
 
-### 14.1 FAQ Accordion (8 questions, left column)
+### 15.1 FAQ Accordion (8 questions, left column)
 
 All items are **interactive** — clicking a question expands/collapses the answer. Only one answer is open at a time.
 
@@ -796,7 +872,7 @@ All items are **interactive** — clicking a question expands/collapses the answ
 | 7 | How is margin impact calculated? | Delta between current and LP-optimized operating point, valued at current market prices. Accounts for utility costs, yield shifts, and quality giveaway. |
 | 8 | Who can I contact for support? | Site admin, submit ticket on this page, email reflex-support@constellation.com, or 24/7 phone: +1 (800) 555-0142. Response SLAs: Critical 15min, High 1hr, Medium 4hr, Low next business day. |
 
-### 14.2 Documentation Links (6 items, right column top)
+### 15.2 Documentation Links (6 items, right column top)
 
 | Link | Description |
 |------|-------------|
@@ -809,7 +885,7 @@ All items are **interactive** — clicking a question expands/collapses the answ
 
 All links point to `#` (mock). Icons change color to teal on hover.
 
-### 14.3 Support Ticket Form (right column bottom)
+### 15.3 Support Ticket Form (right column bottom)
 
 **Interactive form** with three fields:
 - **Subject**: Text input with placeholder "Brief description of the issue"
@@ -821,7 +897,7 @@ All links point to `#` (mock). Icons change color to teal on hover.
 2. Shows success state: green checkmark, "Ticket submitted successfully", reference number "SUP-2847"
 3. "Submit another ticket" link resets the form
 
-### 14.4 System Status (bottom, full width, 5 services)
+### 15.4 System Status (bottom, full width, 5 services)
 
 | Service | Status | Detail |
 |---------|--------|--------|
@@ -832,3 +908,60 @@ All links point to `#` (mock). Icons change color to teal on hover.
 | Task Scheduler | Operational | All jobs running |
 
 The Market Feed degraded status is consistent with the log entries showing EIA API timeouts and rate limiting.
+
+---
+
+## 16. Dark Mode
+
+### 16.1 Toggle
+
+A sun/moon icon button in the Header bar, positioned between the connection status dots and the user avatar.
+
+| Element | Description |
+|---------|-------------|
+| **Light mode icon** | Sun icon (Lucide `Sun`). Visible when light mode is active. |
+| **Dark mode icon** | Moon icon (Lucide `Moon`). Visible when dark mode is active. |
+| **Animation** | Icons swap with a rotate + scale + opacity transition (200ms). |
+| **Click behavior** | Toggles between light and dark mode instantly. All page elements update without reload. |
+
+### 16.2 Persistence & Defaults
+
+- **First visit**: Respects the operating system's `prefers-color-scheme` setting. If the OS is set to dark mode, Reflex loads in dark mode.
+- **Subsequent visits**: The user's choice is saved to `localStorage` (key: `reflex-theme`, values: `"light"` or `"dark"`). This overrides the system preference.
+- **FOUC prevention**: An inline `<script>` in the HTML `<head>` reads the stored theme before the page paints, preventing a flash of the wrong theme on load.
+
+### 16.3 Dark Mode Color Palette
+
+| Token | Light | Dark | Purpose |
+|-------|-------|------|---------|
+| Body background | #F5F5F5 | #0B0F14 | Main page surface |
+| Card background | #FFFFFF | #151B23 | Cards, modals, panels |
+| Border | #E5E7EB | #2A323D | Card and section borders |
+| Text primary | #111827 | #F3F4F6 | Headlines and body text |
+| Text secondary | #4B5563 | #B8C0CC | Supporting text |
+| Text muted | #9CA3AF | #7A8494 | Tertiary text, labels |
+| Teal accent | #0D9488 | #14B8A6 | Brand color, buttons, active states |
+| Status healthy | #0D9488 | #14B8A6 | Healthy indicators |
+| Status warning | #D97706 | #F59E0B | Warning indicators |
+| Status critical | #DC2626 | #EF4444 | Critical indicators |
+| Shadows | Light rgba | Deeper alpha (0.45) | Card shadows are more pronounced in dark mode |
+
+### 16.4 Chart Theming
+
+All ECharts components (Waterfall, Drift, Flow Network, Constraint Bar, Sensor Health Matrix, Sankey, Heatmap, Trend, Emissions Bar) use a shared `useChartTheme()` hook that returns theme-aware colors for:
+- Tooltip backgrounds and text
+- Axis labels and gridlines
+- Series colors (teal accent is slightly brighter in dark mode for contrast)
+- Heatmap color scales (deep green/amber/red bases instead of pastel backgrounds)
+
+Charts re-render on theme toggle without page reload.
+
+### 16.5 Implementation
+
+| File | Purpose |
+|------|---------|
+| `src/lib/theme.ts` | Theme store using `useSyncExternalStore`. Exports `useTheme()`, `useIsDark()`, `toggleTheme()` |
+| `src/lib/chart-theme.ts` | `useChartTheme()` hook returning typed palette for ECharts |
+| `src/components/ui/ThemeToggle.tsx` | Sun/moon toggle button component |
+| `src/app/globals.css` | CSS variable definitions with `.dark { }` overrides |
+| `src/app/layout.tsx` | Inline FOUC-prevention script in `<head>` |
